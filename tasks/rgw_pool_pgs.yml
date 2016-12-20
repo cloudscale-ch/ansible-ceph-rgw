@@ -1,7 +1,27 @@
 ---
-- name: create rgw pools if create_pools is defined
-  command: ceph --connect-timeout 5 --cluster {{ cluster }} osd pool create {{ item.key }} {{ item.value.pg_num }}
+- name: get default pg_num
+  shell: ceph --cluster {{ cluster }} --show-config | grep  'osd_pool_default_pg_num' | cut -d '=' -f 2
+  register: default_pg_num
   changed_when: false
-  failed_when: false
-  when: create_pools is defined
-  with_dict: "{{ create_pools }}"
+  check_mode: false
+  when: radosgw_create_pools
+  delegate_to: '{{ groups[mon_group_name][0] }}'
+  run_once: true
+
+- name: get current pool list
+  command: rados lspools
+  register: pool_list
+  changed_when: false
+  check_mode: false
+  when: radosgw_create_pools
+  delegate_to: '{{ groups[mon_group_name][0] }}'
+  run_once: true
+
+- name: create ceph pools
+  command: ceph osd pool create {{ item.name }} {{ item.pg_num or default_pg_num.stdout }} {{ item.pg_num }} {{ item.crush_rule }}
+  when:
+    - radosgw_create_pools
+    - item.name not in pool_list.stdout_lines
+  with_items: '{{ radosgw_pools }}'
+  delegate_to: '{{ groups[mon_group_name][0] }}'
+  run_once: true
