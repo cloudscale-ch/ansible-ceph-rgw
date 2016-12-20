@@ -7,30 +7,30 @@
     group: "ceph"
     mode: "0755"
   with_items:
-    - /var/lib/ceph/bootstrap-rgw
     - /var/lib/ceph/radosgw
     - /var/lib/ceph/radosgw/{{ cluster }}-rgw.{{ ansible_hostname }}
     - "{{ rbd_client_admin_socket_path }}"
 
-- name: copy rados gateway bootstrap key
-  copy:
-    src: "{{ fetch_directory }}/{{ fsid }}{{ item.name }}"
-    dest: "{{ item.name }}"
-    owner: "ceph"
-    group: "ceph"
-    mode: "0600"
-  with_items:
-    - { name: "/var/lib/ceph/bootstrap-rgw/{{ cluster }}.keyring", copy_key: true }
-    - { name: "/etc/ceph/{{ cluster }}.client.admin.keyring", copy_key: "{{ copy_admin_key }}" }
-  when:
-    - cephx
-    - item.copy_key|bool
-
 - name: create rados gateway keyring
-  command: ceph --cluster {{ cluster }} --name client.bootstrap-rgw --keyring /var/lib/ceph/bootstrap-rgw/{{ cluster }}.keyring auth get-or-create client.rgw.{{ ansible_hostname }} osd 'allow rwx' mon 'allow rw' -o /var/lib/ceph/radosgw/{{ cluster }}-rgw.{{ ansible_hostname }}/keyring
+  command: '{{ lookup("template", "radosgw_create_keyring.j2") }}'
   args:
-    creates: /var/lib/ceph/radosgw/{{ cluster }}-rgw.{{ ansible_hostname }}/keyring
+    creates: /etc/ceph/client.rgw.{{ ansible_hostname }}.keyring
   changed_when: false
+  when: cephx
+  delegate_to: '{{ groups[mon_group_name][0] }}'
+
+- name: fetch rados gateway key
+  fetch:
+    src: /etc/ceph/client.rgw.{{ ansible_hostname }}.keyring
+    dest: "{{ fetch_directory }}/{{ fsid }}/etc/ceph/client.rgw.{{ ansible_hostname }}.keyring"
+    flat: yes
+  when: cephx
+  delegate_to: '{{ groups[mon_group_name][0] }}'
+
+- name: put rados gateway key
+  copy:
+    src: "{{ fetch_directory }}/{{ fsid }}/etc/ceph/client.rgw.{{ ansible_hostname }}.keyring"
+    dest: /var/lib/ceph/radosgw/{{ cluster }}-rgw.{{ ansible_hostname }}/keyring
   when: cephx
 
 - name: set rados gateway key permissions

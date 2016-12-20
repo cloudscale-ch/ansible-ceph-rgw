@@ -1,0 +1,10 @@
+ceph --cluster {{ cluster }}
+     auth get-or-create client.rgw.{{ ansible_hostname }}
+{% if radosgw_create_pools %}
+     mon 'allow r'
+     osd '{% for pool in radosgw_pools %}allow rwx pool={{ pool.name }}{% if not loop.last %}, {% endif %}{% endfor %}'
+{% else %}
+     osd 'allow rwx'
+     mon 'allow rw'
+{% endif %}
+     -o /etc/ceph/client.rgw.{{ ansible_hostname }}.keyring
