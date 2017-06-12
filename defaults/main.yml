@@ -55,7 +55,7 @@ radosgw_pool_name_prefix: default
 # List of pools needed for a functional RADOS Gateway (jewel)
 # you probably don't need to modify this. Modify variables above
 # instead.
-radosgw_pools:
+radosgw_default_pools:
   - name: '.rgw.root'
     pg_num: '{{ radosgw_utility_pool_pg_num | default() }}'
     crush_rule: '{{ radosgw_utility_pool_crush_rule | default() }}'
@@ -101,6 +101,14 @@ radosgw_pools:
   - name: '{{ radosgw_pool_name_prefix }}.rgw.meta'
     pg_num: '{{ radosgw_utility_pool_pg_num | default() }}'
     crush_rule: '{{ radosgw_utility_pool_crush_rule | default() }}'
+
+# List of custom radosgw pools. This can be used to add a pool for a cache tier
+# or if you need additional pools for different placement rule.
+radosgw_custom_pools: []
+
+# Pools to create for RADOS GW. Most probably you want to change radosgw_custom_pools
+# instead.
+radosgw_pools: '{{ radosgw_default_pools + radosgw_custom_pools }}'
 
 ##########
 # DOCKER #
